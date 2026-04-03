@@ -3,80 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lager-Profi Scanner</title>
+    <title>Barcode Scanner</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f4f9; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        #reader { width: 100%; max-width: 400px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .status-card { background: white; padding: 20px; border-radius: 10px; width: 100%; max-width: 400px; margin-top: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .step { font-weight: bold; color: #007bff; }
-        .data-display { font-size: 1.2em; margin: 10px 0; }
-        button { padding: 15px 20px; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; margin-bottom: 10px; }
-        .btn-in { background: #28a745; }
-        .btn-out { background: #ffc107; color: black; }
-        .reset { background: #dc3545; margin-top: 10px; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f4f4f9; margin: 0; padding: 20px; }
+        #reader { width: 100%; max-width: 500px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .info-box { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 20px; width: 100%; max-width: 460px; }
+        #instruction { font-weight: bold; color: #007bff; margin-bottom: 15px; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 16px; }
+        .data-label { color: #666; }
+        .data-value { font-weight: bold; color: #000; }
+        #action-buttons { display: none; gap: 10px; margin-top: 20px; width: 100%; max-width: 500px; }
+        button { flex: 1; padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; color: white; transition: opacity 0.2s; }
+        .btn-einlagern { background-color: #28a745; }
+        .btn-auslagern { background-color: #dc3545; }
     </style>
 </head>
 <body>
 
-    <h2>Lager-Buchungssystem</h2>
-    
     <div id="reader"></div>
 
-    <div class="status-card">
-        <div id="instruction" class="step">SCHRITT 1: Lagerplatz scannen</div>
-        <div class="data-display">
-            Lagerplatz: <span id="val-platz">---</span><br>
-            Ware: <span id="val-ware">---</span>
+    <div class="info-box">
+        <div id="instruction">SCHRITT 1: Lagerplatz scannen</div>
+        <div class="data-row">
+            <span class="data-label">Lagerplatz:</span>
+            <span id="val-platz" class="data-value">---</span>
         </div>
-        
-        <div id="action-buttons" style="display:none;">
-            <button class="btn-in" onclick="sendToSheet('EINGANG')">Ware einlagern (+)</button>
-            <button class="btn-out" onclick="sendToSheet('AUSGANG')">Ware entnehmen (-)</button>
+        <div class="data-row">
+            <span class="data-label">Ware:</span>
+            <span id="val-ware" class="data-value">---</span>
         </div>
-        
-        <button class="reset" onclick="resetScanner()">Scan zurücksetzen</button>
+    </div>
+
+    <div id="action-buttons">
+        <button class="btn-einlagern" onclick="sendToSheet('EINLAGERN')">EINLAGERN</button>
+        <button class="btn-auslagern" onclick="sendToSheet('AUSLAGERN')">AUSLAGERN</button>
     </div>
 
     <script>
         let lagerplatz = null;
         let ware = null;
+        let isWaiting = false;
+
         const html5QrCode = new Html5Qrcode("reader");
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
         function onScanSuccess(decodedText) {
+            if (isWaiting) return;
+
             if (!lagerplatz) {
+                // SCHRITT 1: Lagerplatz
                 lagerplatz = decodedText;
                 document.getElementById('val-platz').innerText = lagerplatz;
-                document.getElementById('instruction').innerText = "SCHRITT 2: Ware scannen";
-                document.getElementById('instruction').style.color = "#28a745";
+                
+                isWaiting = true;
+                html5QrCode.pause(true); // Kamera pausieren
+                
+                document.getElementById('instruction').innerText = "Warte 2 Sekunden...";
+                document.getElementById('instruction').style.color = "orange";
+                
+                setTimeout(() => {
+                    isWaiting = false;
+                    html5QrCode.resume(); // Kamera wieder an
+                    document.getElementById('instruction').innerText = "SCHRITT 2: Ware scannen";
+                    document.getElementById('instruction').style.color = "#28a745";
+                    navigator.vibrate(100); 
+                }, 2000);
+
             } else if (!ware) {
+                // SCHRITT 2: Ware mit Dubletten-Check
+                if (decodedText === lagerplatz) return; 
+
                 ware = decodedText;
                 document.getElementById('val-ware').innerText = ware;
-                document.getElementById('instruction').innerText = "SCHRITT 3: Aktion wählen";
-                document.getElementById('action-buttons').style.display = "block";
-                if (navigator.vibrate) navigator.vibrate(100);
+                document.getElementById('instruction').innerText = "Aktion wählen";
+                document.getElementById('action-buttons').style.display = "flex";
+                navigator.vibrate(100);
             }
         }
 
         function sendToSheet(typ) {
-            // ERSETZE DIESE URL DURCH DEINE GOOGLE WEB APP URL
-            const webAppUrl = "https://script.google.com/macros/s/AKfycby9D-uMQ4FB97Cgg4KHfB6p7JGQD0SXwmBGrcZAqwSW1JntXIUJbvpOUnAHCb_dPZjyAA/exec";
-            
+            const webAppUrl = "https://script.google.com/macros/s/AKfycbyBOFuRoiKwuzEqceEOlcGpUXQ9N9AzEA_4nV7s-w0ns4IjBIPNQVXSXNjKcYVwZFmx-Q/exec";
             const params = `?platz=${encodeURIComponent(lagerplatz)}&ware=${encodeURIComponent(ware)}&typ=${typ}`;
-            
-            // mode: 'no-cors' verhindert Fehlermeldungen beim Senden an Google
-            fetch(webAppUrl + params, { mode: 'no-cors' })
-                .then(() => {
-                    alert(`${typ} erfolgreich an Google gesendet!`);
+           
+            fetch(webAppUrl + params)
+                .then(response => {
+                    alert(`${typ} erfolgreich gebucht!`);
                     resetScanner();
                 })
-                .catch(err => alert("Fehler: " + err));
+                .catch(err => alert("Fehler beim Senden: " + err));
         }
 
         function resetScanner() {
             lagerplatz = null;
             ware = null;
+            isWaiting = false;
             document.getElementById('val-platz').innerText = "---";
             document.getElementById('val-ware').innerText = "---";
             document.getElementById('instruction').innerText = "SCHRITT 1: Lagerplatz scannen";
@@ -88,4 +109,5 @@
     </script>
 </body>
 </html>
+
 
