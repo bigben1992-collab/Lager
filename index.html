@@ -17,6 +17,7 @@
         button { flex: 1; padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; color: white; transition: opacity 0.2s; }
         .btn-einlagern { background-color: #28a745; }
         .btn-auslagern { background-color: #dc3545; }
+        button:disabled { cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -52,33 +53,29 @@
             if (isWaiting) return;
 
             if (!lagerplatz) {
-                // SCHRITT 1: Lagerplatz
                 lagerplatz = decodedText;
                 document.getElementById('val-platz').innerText = lagerplatz;
-                
                 isWaiting = true;
-                html5QrCode.pause(true); // Kamera pausieren
+                html5QrCode.pause(true);
                 
                 document.getElementById('instruction').innerText = "Warte 2 Sekunden...";
                 document.getElementById('instruction').style.color = "orange";
                 
                 setTimeout(() => {
                     isWaiting = false;
-                    html5QrCode.resume(); // Kamera wieder an
+                    html5QrCode.resume();
                     document.getElementById('instruction').innerText = "SCHRITT 2: Ware scannen";
                     document.getElementById('instruction').style.color = "#28a745";
-                    navigator.vibrate(100); 
+                    if(navigator.vibrate) navigator.vibrate(100); 
                 }, 2000);
 
             } else if (!ware) {
-                // SCHRITT 2: Ware mit Dubletten-Check
                 if (decodedText === lagerplatz) return; 
-
                 ware = decodedText;
                 document.getElementById('val-ware').innerText = ware;
                 document.getElementById('instruction').innerText = "Aktion wählen";
                 document.getElementById('action-buttons').style.display = "flex";
-                navigator.vibrate(100);
+                if(navigator.vibrate) navigator.vibrate(100);
             }
         }
 
@@ -86,18 +83,44 @@
             const webAppUrl = "https://script.google.com/macros/s/AKfycbyBOFuRoiKwuzEqceEOlcGpUXQ9N9AzEA_4nV7s-w0ns4IjBIPNQVXSXNjKcYVwZFmx-Q/exec";
             const params = `?platz=${encodeURIComponent(lagerplatz)}&ware=${encodeURIComponent(ware)}&typ=${typ}`;
            
-            fetch(webAppUrl + params)
-                .then(response => {
+            const btnEin = document.querySelector('.btn-einlagern');
+            const btnAus = document.querySelector('.btn-auslagern');
+            const instruction = document.getElementById('instruction');
+
+            // Sperre Buttons
+            btnEin.disabled = true;
+            btnAus.disabled = true;
+            btnEin.style.opacity = "0.5";
+            btnAus.style.opacity = "0.5";
+            instruction.innerText = "Übertragung läuft...";
+            instruction.style.color = "orange";
+
+            fetch(webAppUrl + params, { mode: 'no-cors' })
+                .then(() => {
                     alert(`${typ} erfolgreich gebucht!`);
                     resetScanner();
                 })
-                .catch(err => alert("Fehler beim Senden: " + err));
+                .catch(err => {
+                    alert("Fehler beim Senden: " + err);
+                    btnEin.disabled = false;
+                    btnAus.disabled = false;
+                    btnEin.style.opacity = "1";
+                    btnAus.style.opacity = "1";
+                });
         }
 
         function resetScanner() {
             lagerplatz = null;
             ware = null;
             isWaiting = false;
+            
+            const btnEin = document.querySelector('.btn-einlagern');
+            const btnAus = document.querySelector('.btn-auslagern');
+            btnEin.disabled = false;
+            btnAus.disabled = false;
+            btnEin.style.opacity = "1";
+            btnAus.style.opacity = "1";
+
             document.getElementById('val-platz').innerText = "---";
             document.getElementById('val-ware').innerText = "---";
             document.getElementById('instruction').innerText = "SCHRITT 1: Lagerplatz scannen";
