@@ -59,8 +59,7 @@
 
         function sendToSheet(typ) {
             // HIER DEINE GOOGLE APPS SCRIPT URL EINTRAGEN
-            const webAppUrl = "https://script.google.com/macros/s/AKfycbyBOFuRoiKwuzEqceEOlcGpUXQ9N9AzEA_4nV7s-w0ns4IjBIPNQVXSXNjKcYVwZFmx-Q/exec
-";
+            const webAppUrl = "https://script.google.com/macros/s/AKfycbyBOFuRoiKwuzEqceEOlcGpUXQ9N9AzEA_4nV7s-w0ns4IjBIPNQVXSXNjKcYVwZFmx-Q/exec";
             
             const params = `?platz=${encodeURIComponent(lagerplatz)}&ware=${encodeURIComponent(ware)}&typ=${typ}`;
             
@@ -83,4 +82,3 @@
         }
 
         html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
-    </script>
